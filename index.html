@@ -172,6 +172,14 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-2YVXSNCWGP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-2YVXSNCWGP');
+</script>
 </head>
 <body>
 
@@ -388,6 +396,7 @@ const CONTACT = {
 };
 
 const $ = (id) => document.getElementById(id);
+const track = (name) => { try { window.gtag && window.gtag("event", name); } catch (e) {} };
 
 /* ---------- Navegación interna ---------- */
 document.querySelectorAll("[data-go]").forEach((a) => {
@@ -724,6 +733,7 @@ $("dl").addEventListener("click", async () => {
       const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
       await downloadsApi.save({ filename: current.name + ".zip", data: blob });
       setMsg("Descarga lista: " + current.name + ".zip");
+      track("descarga_stl");
     } else {
       const url = URL.createObjectURL(new Blob([toSTL(current.tris)], { type: "model/stl" }));
       const a = document.createElement("a");
@@ -731,6 +741,7 @@ $("dl").addEventListener("click", async () => {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
       setMsg("Descarga lista: " + current.name + ".stl");
+      track("descarga_stl");
     }
   } catch (e) {
     if (e && e.code === "declined") setMsg("");
@@ -785,6 +796,7 @@ $("form").addEventListener("submit", async (e) => {
     });
     if (!r.ok) throw new Error("http " + r.status);
     note.textContent = "Listo, recibimos tu consulta. Te respondemos a la brevedad.";
+    track("enviar_consulta");
     $("f-detail").value = "";
   } catch (err) {
     note.textContent = "No pudimos enviar la consulta desde esta página.";
