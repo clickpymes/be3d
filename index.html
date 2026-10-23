@@ -160,6 +160,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
 
 footer { border-top: 1px solid var(--line); padding-top: 1.5rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; color: var(--muted); font-size: .88rem; }
 
+footer a.credit { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accent); }
+
 @media (max-width: 860px) {
   .hero, .conv, .contact { grid-template-columns: 1fr; }
   .hero { gap: 2rem; padding-block: 2rem 3rem; }
@@ -364,7 +367,7 @@ footer { border-top: 1px solid var(--line); padding-top: 1.5rem; display: flex; 
 
   <footer>
     <span>© 2026 Be3D · Impresión 3D</span>
-    <span class="mono">Be3D</span>
+    <span>Sitio por <a class="credit" href="https://clickpymes.com.ar" target="_blank" rel="noopener">Clickpymes</a></span>
   </footer>
 </div>
 
