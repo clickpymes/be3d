@@ -7,6 +7,7 @@ Sitio de Be3D, impresión 3D a medida. Es una sola página estática (`index.htm
 - Portada, servicios, materiales y proceso de trabajo.
 - Conversor de `.3mf` y `.obj` a STL. Se procesa en el navegador: el archivo no sale de la computadora del visitante. Los `.step` / `.stp` no se pueden convertir ahí; la página invita a escribir por contacto.
 - Visor 3D del modelo cargado, con medidas, volumen y peso de referencia en PLA.
+- Modelo de ejemplo en el visor: el soporte de celular `Base_Celu_1` (STL en `assets/Base_Celu_1.stl`, embebido en `index.html`).
 - Formulario de contacto que envía la consulta por mail a `consultas@be3d.com.ar` (función en `functions/api/contact.js`). Si el envío falla, ofrece copiar el mensaje o mandarlo por WhatsApp.
 
 ## Datos a completar
