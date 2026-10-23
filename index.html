@@ -143,6 +143,8 @@ dl.stats dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: ta
 .channel { display: flex; flex-direction: column; gap: .25rem; }
 .channel .val { font-family: var(--font-mono); font-size: 1rem; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
 .channel .val span { user-select: all; overflow-wrap: anywhere; }
+.channel .val a.ig { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+.channel .val a.ig:hover { color: var(--accent); text-decoration-color: var(--accent); }
 .mini { font: 500 .78rem var(--font-body); padding: .25rem .6rem; border-radius: 4px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
 .mini:hover { border-color: var(--ink); }
 form.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -323,6 +325,10 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
               <span class="eyebrow">Email</span>
               <div class="val"><span id="c-mail"></span><button class="mini" type="button" data-copy="mail">Copiar</button></div>
             </div>
+            <div class="channel">
+              <span class="eyebrow">Instagram</span>
+              <div class="val"><a class="ig" href="https://www.instagram.com/be3darg/" target="_blank" rel="noopener">@be3darg</a></div>
+            </div>
           </div>
         </div>
         <form class="card" id="form" novalidate>
@@ -380,7 +386,7 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
   </main>
 
   <footer>
-    <span>© 2026 Be3D · Impresión 3D</span>
+    <span>© 2026 Be3D · Impresión 3D · <a class="credit" href="https://www.instagram.com/be3darg/" target="_blank" rel="noopener">@be3darg</a></span>
     <span>Sitio por <a class="credit" href="https://clickpymes.com.ar" target="_blank" rel="noopener">Clickpymes</a></span>
   </footer>
 </div>
