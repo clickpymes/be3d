@@ -39,6 +39,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -306,7 +307,7 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
           <h2 style="margin-top:.75rem">Contanos qué necesitás</h2>
           <p style="color:var(--muted);margin-top:.9rem">Respondemos con una cotización. Si ya tenés el archivo, mencionalo y lo mandás por el mismo chat.</p>
           <div class="channels">
-            <div class="channel">
+            <div class="channel" id="ch-wa">
               <span class="eyebrow">WhatsApp</span>
               <div class="val"><span id="c-wa"></span><button class="mini" type="button" data-copy="wa">Copiar</button></div>
             </div>
@@ -324,8 +325,12 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
           </div>
           <div class="field">
             <label for="f-contact">Tu email o teléfono</label>
-            <input id="f-contact" name="contact" autocomplete="email">
-            <span class="err-text"></span>
+            <input id="f-contact" name="contact" autocomplete="email" required>
+            <span class="err-text" id="e-contact"></span>
+          </div>
+          <div aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
+            <label for="f-web">No completar</label>
+            <input id="f-web" name="website" tabindex="-1" autocomplete="off">
           </div>
           <div class="field">
             <label for="f-type">Tipo de trabajo</label>
@@ -349,10 +354,11 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
             <span class="err-text" id="e-detail"></span>
           </div>
           <div class="field full">
-            <button class="btn" type="submit">Armar mensaje</button>
+            <button class="btn" type="submit" id="send-btn">Enviar consulta</button>
+            <p class="fine" id="send-note" role="status" aria-live="polite" style="margin-top:.6rem"></p>
           </div>
           <div class="result" id="result" hidden>
-            <label for="f-out">Tu mensaje está listo. Enviarlo por WhatsApp o copiarlo para mandarlo por mail.</label>
+            <label for="f-out" id="out-label">Copiá el mensaje y mandalo por otro medio.</label>
             <textarea id="f-out" readonly></textarea>
             <div class="actions">
               <a class="btn" id="wa-link" href="#" target="_blank" rel="noopener">Abrir WhatsApp</a>
@@ -376,9 +382,9 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
 <script>
 /* ---------- Datos de contacto: editar acá ---------- */
 const CONTACT = {
-  whatsapp: "5492990000000",          // solo números, con código de país
-  whatsappLabel: "+54 9 299 000-0000",
-  email: "hola@be3d.com.ar"
+  whatsapp: "",                       // solo números, con código de país (ej. 5492990000000). Vacío = se oculta
+  whatsappLabel: "",
+  email: "consultas@be3d.com.ar"
 };
 
 const $ = (id) => document.getElementById(id);
@@ -735,6 +741,7 @@ $("dl").addEventListener("click", async () => {
 /* ---------- Contacto ---------- */
 $("c-wa").textContent = CONTACT.whatsappLabel;
 $("c-mail").textContent = CONTACT.email;
+if (!CONTACT.whatsapp) $("ch-wa").hidden = true;
 
 async function copyText(text, el) {
   try { await navigator.clipboard.writeText(text); return true; }
@@ -752,27 +759,44 @@ document.querySelectorAll("[data-copy]").forEach((b) => {
   });
 });
 
-$("form").addEventListener("submit", (e) => {
+$("form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const name = $("f-name").value.trim(), detail = $("f-detail").value.trim();
+  const name = $("f-name").value.trim(), detail = $("f-detail").value.trim(), contact = $("f-contact").value.trim();
   $("e-name").textContent = name ? "" : "Contanos tu nombre.";
+  $("e-contact").textContent = contact ? "" : "Dejanos un email o teléfono para responderte.";
   $("e-detail").textContent = detail ? "" : "Describí brevemente qué necesitás.";
-  if (!name || !detail) return;
-  const contact = $("f-contact").value.trim();
-  const lines = [
+  if (!name || !contact || !detail) return;
+  const type = $("f-type").value, material = $("f-mat").value, qty = $("f-qty").value || "1";
+  const msg = [
     "Hola Be3D, soy " + name + ".",
-    "Trabajo: " + $("f-type").value,
-    "Material: " + $("f-mat").value,
-    "Cantidad: " + ($("f-qty").value || "1"),
-    "Detalle: " + detail
-  ];
-  if (contact) lines.push("Contacto: " + contact);
-  const msg = lines.join("\n");
-  $("f-out").value = msg;
-  $("wa-link").href = "https://wa.me/" + CONTACT.whatsapp + "?text=" + encodeURIComponent(msg);
-  $("result").hidden = false;
-  $("copy-note").textContent = "";
-  $("result").scrollIntoView({ block: "nearest" });
+    "Trabajo: " + type,
+    "Material: " + material,
+    "Cantidad: " + qty,
+    "Detalle: " + detail,
+    "Contacto: " + contact
+  ].join("\n");
+  const btn = $("send-btn"), note = $("send-note");
+  btn.disabled = true; note.textContent = "Enviando…"; $("result").hidden = true;
+  try {
+    const r = await fetch("/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, contact, type, material, qty, detail, website: $("f-web").value })
+    });
+    if (!r.ok) throw new Error("http " + r.status);
+    note.textContent = "Listo, recibimos tu consulta. Te respondemos a la brevedad.";
+    $("f-detail").value = "";
+  } catch (err) {
+    note.textContent = "No pudimos enviar la consulta desde esta página.";
+    $("out-label").textContent = "Copiá el mensaje" + (CONTACT.whatsapp ? ", mandalo por WhatsApp" : "") + " o escribinos a " + CONTACT.email + ".";
+    $("f-out").value = msg;
+    $("wa-link").hidden = !CONTACT.whatsapp;
+    if (CONTACT.whatsapp) $("wa-link").href = "https://wa.me/" + CONTACT.whatsapp + "?text=" + encodeURIComponent(msg);
+    $("copy-note").textContent = "";
+    $("result").hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
 });
 $("copy-msg").addEventListener("click", async () => {
   const ok = await copyText($("f-out").value, $("f-out"));
