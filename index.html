@@ -118,7 +118,7 @@ td.temp { font-family: var(--font-mono); white-space: nowrap; }
 .steps p { color: var(--muted); font-size: .95rem; }
 
 /* Conversor */
-.conv { display: grid; grid-template-columns: 1.2fr .8fr; gap: 1.5rem; align-items: start; }
+.conv { display: grid; grid-template-columns: .8fr 1.2fr; gap: 1.5rem; align-items: start; }
 .viewer { position: relative; aspect-ratio: 4 / 3; width: 100%; background: var(--viewer); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .viewer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
 .viewer canvas:active { cursor: grabbing; }
@@ -136,6 +136,15 @@ dl.stats dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: ta
 .msg { font-size: .9rem; color: var(--muted); min-height: 1.4em; }
 .msg.err { color: var(--danger); }
 .fine { font-size: .84rem; color: var(--muted); }
+
+/* Visor de la portada y marcador del conversor */
+.hero-viewer { aspect-ratio: 4 / 5; border: 0; }
+.placeholder { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; padding: 1rem; text-align: center; background: var(--viewer); cursor: pointer; }
+.placeholder svg { width: 104px; height: 104px; margin-bottom: .6rem; }
+.placeholder strong { font-family: var(--font-display); font-size: 1.5rem; font-weight: 650; letter-spacing: -0.01em; }
+.placeholder span { color: var(--muted); font-size: .95rem; }
+.placeholder small { font-family: var(--font-mono); font-size: .76rem; color: var(--muted); margin-top: .35rem; }
+.badge, .hint { z-index: 2; }
 
 /* Contacto */
 .contact { display: grid; grid-template-columns: .8fr 1.2fr; gap: 3rem; align-items: start; }
@@ -210,7 +219,10 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
         </div>
       </div>
       <figure class="slice">
-        <svg id="vase" viewBox="0 0 340 480" role="img" aria-label="Soporte de celular dibujado en 60 capas de impresión apiladas"></svg>
+        <div class="viewer hero-viewer" id="hviewer">
+          <canvas id="hcv" aria-label="Soporte de celular en 3D. Arrastrá para girarlo."></canvas>
+          <span class="hint">arrastrar para girar</span>
+        </div>
         <figcaption><span>Soporte de celular</span><span>124 × 60 × 95 mm</span></figcaption>
       </figure>
     </div>
@@ -285,11 +297,6 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
         <p>Subí un <span class="mono">.3mf</span> u <span class="mono">.obj</span>, mirá el modelo en 3D y descargá el STL. Todo se procesa en tu navegador: el archivo no se sube a ningún servidor.</p>
       </div>
       <div class="conv">
-        <div class="viewer" id="viewer">
-          <canvas id="cv" aria-label="Vista 3D del modelo. Arrastrá para girar, usá la rueda para acercar."></canvas>
-          <span class="badge" id="badge">Modelo de ejemplo</span>
-          <span class="hint">arrastrar para girar · rueda para zoom</span>
-        </div>
         <div class="panel">
           <div class="drop" id="drop" role="button" tabindex="0" aria-label="Elegir un archivo 3MF u OBJ">
             <strong>Arrastrá un archivo acá o elegilo</strong>
@@ -303,9 +310,24 @@ footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accen
             <dt>Volumen</dt><dd id="s-vol">—</dd>
             <dt>PLA macizo</dt><dd id="s-w">—</dd>
           </dl>
-          <button class="btn" id="dl" type="button">Descargar STL</button>
-          <p class="msg" id="msg" role="status" aria-live="polite"></p>
+          <button class="btn" id="dl" type="button" disabled>Descargar STL</button>
+          <p class="msg" id="msg" role="status" aria-live="polite">Elegí un archivo .3mf u .obj para empezar.</p>
           <p class="fine">El STL queda listo para abrir en tu slicer. El peso es una referencia a 100 % de relleno con PLA (1,24 g/cm³).</p>
+        </div>
+        <div class="viewer" id="viewer">
+          <canvas id="cv" aria-label="Vista 3D de tu modelo. Arrastrá para girar, usá la rueda para acercar."></canvas>
+          <div class="placeholder" id="ph" role="button" tabindex="0" aria-label="Cargá tu archivo para verlo en 3D">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <polygon points="60,22 93,41 60,60 27,41" style="fill:var(--accent);fill-opacity:.18;stroke:var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+              <polygon points="27,41 60,60 60,98 27,79" style="fill:none;stroke:var(--muted)" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/>
+              <polygon points="60,60 93,41 93,79 60,98" style="fill:none;stroke:var(--muted)" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/>
+            </svg>
+            <strong>Cargá tu archivo</strong>
+            <span>Acá vas a ver tu modelo en 3D</span>
+            <small>.3mf · .obj</small>
+          </div>
+          <span class="badge" id="badge" hidden></span>
+          <span class="hint" id="vhint" hidden>arrastrar para girar · rueda para zoom</span>
         </div>
       </div>
     </section>
@@ -412,78 +434,6 @@ document.querySelectorAll("[data-go]").forEach((a) => {
     if (t) t.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   });
 });
-
-/* ---------- Soporte de celular rebanado en capas ---------- */
-(function () {
-  const svg = $("vase");
-  // Medidas reales del soporte en mm: C = fondo, B = ancho, A = alto
-  const C = 95, B = 60, A = 124, LAYERS = 130, DZ = A / LAYERS, T = 2.2, GX = 0.5, NX = C / GX;
-  // Línea central de la chapa doblada: pared trasera, pliegue, brazos inclinados y labio
-  const PATH = [[93,0],[93,112],[92,118],[88,121.5],[83,122],[31,30],[27,22],[13,22],[11,27]];
-  const dseg = (px, pz, a, b) => {
-    const dx = b[0]-a[0], dz = b[1]-a[1], l2 = dx*dx + dz*dz;
-    const t = Math.max(0, Math.min(1, ((px-a[0])*dx + (pz-a[1])*dz) / l2));
-    return Math.hypot(px - (a[0]+t*dx), pz - (a[1]+t*dz));
-  };
-  function inside(x, y, z) {
-    if (z < 4) {                                                   // base con esquinas frontales redondeadas
-      if (x < 8 && y < 8 && Math.hypot(x-8, y-8) > 8) return false;
-      if (x < 8 && y > B-8 && Math.hypot(x-8, y-(B-8)) > 8) return false;
-      return true;
-    }
-    let best = 1e9, idx = -1;
-    for (let i = 0; i < PATH.length - 1; i++) {
-      const d = dseg(x, z, PATH[i], PATH[i+1]);
-      if (d < best) { best = d; idx = i; }
-    }
-    if (best > T) return false;
-    if (idx >= 4) return !(y > 26 && y < 34);                      // dos brazos separados
-    if (idx >= 1) return !(y > 28.5 && y < 31.5);                  // muesca del pliegue
-    if (z > 108 && y > 28.5 && y < 31.5) return false;
-    if (z > 12 && z < 92) {                                        // ventanas triangulares de la pared
-      const hw = 8 * (1 - (z - 12) / 80);
-      if (Math.abs(y - 15.5) < hw || Math.abs(y - 44.5) < hw) return false;
-    }
-    return true;
-  }
-  // Proyección isométrica: x (fondo) hacia arriba-derecha, y (ancho) hacia abajo-derecha
-  const k = 2.23, c = 0.866, s = 0.5, X0 = 20, Y0 = 397;
-  const P = (x, y, z) => ((X0 + (x + y) * c * k).toFixed(1) + "," + (Y0 + (y - x) * s * k - z * k).toFixed(1));
-  const mix = (a, b, t) => a + (b - a) * t;
-  let out = "";
-  for (let i = 0; i < LAYERS; i++) {
-    const z0 = i * DZ, z1 = z0 + DZ, zm = z0 + DZ / 2, f = i / (LAYERS - 1);
-    const occ = [];
-    for (let xi = 0; xi < NX; xi++) { occ.push([]); for (let yi = 0; yi < B; yi++) occ[xi].push(inside((xi + 0.5) * GX, yi + 0.5, zm)); }
-    // runs a lo largo de x por cada fila y; filas iguales y consecutivas se unen en una caja
-    const open = new Map(), boxes = [];
-    for (let yi = 0; yi <= B; yi++) {
-      const runs = new Map();
-      if (yi < B) {
-        let st = -1;
-        for (let xi = 0; xi <= NX; xi++) {
-          const on = xi < NX && occ[xi][yi];
-          if (on && st < 0) st = xi;
-          if (!on && st >= 0) { runs.set(st + "-" + xi, [st, xi]); st = -1; }
-        }
-      }
-      for (const [key, v] of open) if (!runs.has(key)) { boxes.push({ x0: v.x0 * GX, x1: v.x1 * GX, y0: v.y0, y1: yi }); open.delete(key); }
-      for (const [key, r] of runs) if (!open.has(key)) open.set(key, { x0: r[0], x1: r[1], y0: yi });
-    }
-    boxes.sort((a, b) => ((a.y0 + a.y1) - (a.x0 + a.x1)) - ((b.y0 + b.y1) - (b.x0 + b.x1)));
-    const hue = mix(186, 200, f), sat = mix(66, 100, f), lum = mix(46, 38, f) + (i % 2 ? 2 : 0);
-    const top = "hsl(" + hue.toFixed(0) + "," + sat.toFixed(0) + "%," + (lum + 9).toFixed(0) + "%)";
-    const left = "hsl(" + hue.toFixed(0) + "," + sat.toFixed(0) + "%," + (lum - 1).toFixed(0) + "%)";
-    const right = "hsl(" + hue.toFixed(0) + "," + sat.toFixed(0) + "%," + (lum - 10).toFixed(0) + "%)";
-    for (const b of boxes) {
-      const poly = (pts, col) => '<polygon points="' + pts.join(" ") + '" style="fill:' + col + ';stroke:' + col + '" stroke-width=".3" stroke-linejoin="round"/>';
-      out += poly([P(b.x0, b.y1, z0), P(b.x1, b.y1, z0), P(b.x1, b.y1, z1), P(b.x0, b.y1, z1)], right);
-      out += poly([P(b.x0, b.y0, z0), P(b.x0, b.y1, z0), P(b.x0, b.y1, z1), P(b.x0, b.y0, z1)], left);
-      out += poly([P(b.x0, b.y0, z1), P(b.x1, b.y0, z1), P(b.x1, b.y1, z1), P(b.x0, b.y1, z1)], top);
-    }
-  }
-  svg.insertAdjacentHTML("beforeend", out);
-})();
 
 /* ---------- Lectura de modelos ---------- */
 const I4 = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
@@ -658,24 +608,24 @@ function measure(tris) {
 }
 
 /* ---------- Visor 3D ---------- */
-let renderer, scene, camera, pivot, mesh, material, dist = 80, dragging = false, onScreen = true;
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function initViewer() {
-  const cv = $("cv"), box = $("viewer");
+function createViewer(cv, box, opts) {
+  let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
   } catch (e) {
     const d = document.createElement("div"); d.className = "viewer-fail";
-    d.textContent = "Tu navegador no puede mostrar la vista 3D. La conversión sigue funcionando."; box.appendChild(d);
-    return false;
+    d.textContent = "Tu navegador no puede mostrar la vista 3D."; box.appendChild(d);
+    return null;
   }
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(35, 1, 0.1, 10000);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.95));
-  const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(1, 2, 3); scene.add(dl);
-  pivot = new THREE.Group(); scene.add(pivot);
-  material = new THREE.MeshStandardMaterial({ color: 0x1c9cc4, roughness: 0.55, metalness: 0.05 });
+  cv.style.touchAction = opts.touch;
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(35, 1, 0.1, 10000);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.8));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.6); dl.position.set(1, 2, 3); scene.add(dl);
+  const pivot = new THREE.Group(); scene.add(pivot);
+  const material = new THREE.MeshStandardMaterial({ color: 0x1c9cc4, roughness: 0.55, metalness: 0.05 });
+  let mesh = null, dist = 80, dragging = false, onScreen = true;
 
   const resize = () => {
     const w = box.clientWidth, h = box.clientHeight; if (!w || !h) return;
@@ -694,11 +644,13 @@ function initViewer() {
   });
   const end = () => { dragging = false; };
   cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
-  cv.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    dist = Math.max(camera.near * 2, Math.min(camera.far * 0.5, dist * Math.exp(e.deltaY * 0.001)));
-    camera.position.z = dist;
-  }, { passive: false });
+  if (opts.wheel) {
+    cv.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      dist = Math.max(camera.near * 2, Math.min(camera.far * 0.5, dist * Math.exp(e.deltaY * 0.001)));
+      camera.position.z = dist;
+    }, { passive: false });
+  }
   new IntersectionObserver((en) => { onScreen = en[0].isIntersecting; }).observe(box);
 
   (function loop() {
@@ -707,55 +659,57 @@ function initViewer() {
     if (!dragging && !reduce) pivot.rotation.y += 0.004;
     renderer.render(scene, camera);
   })();
-  return true;
-}
 
-function showModel(tris, zUp) {
-  if (!renderer) return;
-  if (mesh) { pivot.remove(mesh); mesh.geometry.dispose(); }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(tris.slice(), 3));
-  g.computeVertexNormals(); g.computeBoundingBox();
-  const c = new THREE.Vector3(); g.boundingBox.getCenter(c); g.translate(-c.x, -c.y, -c.z);
-  g.computeBoundingSphere();
-  const r = g.boundingSphere.radius || 1;
-  mesh = new THREE.Mesh(g, material);
-  mesh.rotation.x = zUp ? -Math.PI / 2 : 0;
-  pivot.add(mesh);
-  dist = (r / Math.sin(0.3054)) * 1.1;
-  camera.near = r / 100; camera.far = r * 40;
-  camera.position.set(0, 0, dist); camera.updateProjectionMatrix();
-  pivot.rotation.set(0.35, 0.6, 0);
+  return {
+    show(tris, zUp) {
+      if (mesh) { pivot.remove(mesh); mesh.geometry.dispose(); }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(tris.slice(), 3));
+      g.computeVertexNormals(); g.computeBoundingBox();
+      const c = new THREE.Vector3(); g.boundingBox.getCenter(c); g.translate(-c.x, -c.y, -c.z);
+      g.computeBoundingSphere();
+      const r = g.boundingSphere.radius || 1;
+      mesh = new THREE.Mesh(g, material);
+      mesh.rotation.x = zUp ? -Math.PI / 2 : 0;
+      pivot.add(mesh);
+      dist = (r / Math.sin(0.3054)) * 1.1;
+      camera.near = r / 100; camera.far = r * 40;
+      camera.position.set(0, 0, dist); camera.updateProjectionMatrix();
+      pivot.rotation.set(0.35, 0.6, 0);
+    }
+  };
 }
 
 /* ---------- Conversor: estado y UI ---------- */
-let current = null;   // { name, tris, zUp, sample }
+let current = null;   // { name, tris, zUp }
 const fmt = (n, d = 0) => n.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
 function setMsg(t, err) { const m = $("msg"); m.textContent = t || ""; m.className = "msg" + (err ? " err" : ""); }
 
-function setModel(name, tris, zUp, sample) {
-  current = { name, tris, zUp, sample };
+function setModel(name, tris, zUp) {
+  current = { name, tris, zUp };
   const { dim, vol } = measure(tris), cm3 = vol / 1000;
   $("s-name").textContent = name;
   $("s-tris").textContent = fmt(tris.length / 9);
   $("s-dim").textContent = dim.map((d) => fmt(d, 1)).join(" × ") + " mm";
   $("s-vol").textContent = fmt(cm3, 1) + " cm³";
   $("s-w").textContent = "≈ " + fmt(cm3 * 1.24, 0) + " g";
-  $("badge").textContent = sample ? "Modelo de ejemplo" : name;
-  showModel(tris, zUp);
+  $("badge").textContent = name; $("badge").hidden = false;
+  $("vhint").hidden = false; $("ph").hidden = true;
+  $("dl").disabled = false;
+  if (convViewer) convViewer.show(tris, zUp);
 }
 
-function sampleModel() {
+function heroModel() {
+  if (!heroViewer) return;
   try {
     const bin = atob(SAMPLE_STL_B64), u = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
     const r = loadSTL(u.buffer);
-    setModel("Base_Celu_1", r.tris, r.zUp, true);
+    heroViewer.show(r.tris, r.zUp);
   } catch (e) {
     const g = new THREE.TorusKnotGeometry(10, 3, 160, 24, 2, 3).toNonIndexed();
-    const tris = Float32Array.from(g.attributes.position.array);
+    heroViewer.show(Float32Array.from(g.attributes.position.array), false);
     g.dispose();
-    setModel("nudo-ejemplo", tris, false, true);
   }
 }
 
@@ -771,7 +725,7 @@ async function handleFile(file) {
   setMsg("Leyendo " + file.name + "…");
   try {
     const r = ext === "3mf" ? await load3MF(await file.arrayBuffer()) : loadOBJ(await file.text());
-    setModel(base, r.tris, r.zUp, false);
+    setModel(base, r.tris, r.zUp);
     setMsg("Listo. Revisá el modelo y descargá el STL.");
   } catch (e) {
     setMsg(e && e.message ? e.message : "No se pudo leer el archivo.", true);
@@ -884,11 +838,15 @@ $("copy-msg").addEventListener("click", async () => {
 });
 
 /* ---------- Arranque ---------- */
-if (initViewer()) sampleModel();
-else {
-  const t = new Float32Array([0,0,0, 10,0,0, 0,10,0,  0,0,0, 0,10,0, 0,0,10,  0,0,0, 0,0,10, 10,0,0,  10,0,0, 0,0,10, 0,10,0]);
-  setModel("tetraedro-ejemplo", t, false, true);
-}
+const heroViewer = createViewer($("hcv"), $("hviewer"), { wheel: false, touch: "pan-y" });
+const convViewer = createViewer($("cv"), $("viewer"), { wheel: true, touch: "none" });
+heroModel();
+const ph = $("ph");
+ph.addEventListener("click", () => $("file").click());
+ph.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } });
+const vbox = $("viewer");
+vbox.addEventListener("dragover", (e) => e.preventDefault());
+vbox.addEventListener("drop", (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); });
 </script>
 </body>
 </html>
