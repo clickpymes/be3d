@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Be3D</title>
+<meta name="description" content="Be3D: impresión 3D a medida, prototipos, repuestos y conversor de archivos 3MF/OBJ a STL.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: página única. Hero con líneas de capa de fondo y un jarrón "rebanado" a la derecha;
+   conversor con visor 3D y panel de datos lado a lado; contacto en dos columnas. */
+:root {
+  --bg: #ecf0f3;
+  --surface: #f8fafb;
+  --ink: #131c26;
+  --muted: #566475;
+  --line: #cbd4dc;
+  --accent: #0077b0;
+  --accent2: #27b2be;
+  --on-accent: #ffffff;
+  --viewer: #e1e8ee;
+  --danger: #b3261e;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e151c; --surface: #16202a; --ink: #e6edf3; --muted: #93a3b3; --line: #2a3947;
+    --accent: #3db8d8; --accent2: #27b2be; --on-accent: #04222a; --viewer: #101a23; --danger: #ff8a80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e151c; --surface: #16202a; --ink: #e6edf3; --muted: #93a3b3; --line: #2a3947;
+  --accent: #3db8d8; --accent2: #27b2be; --on-accent: #04222a; --viewer: #101a23; --danger: #ff8a80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 1rem; line-height: 1.6;
+  padding-block: 0 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin-inline: auto; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+h1 { font-size: clamp(2.5rem, 6.4vw, 4.4rem); font-weight: 700; }
+h2 { font-size: clamp(1.8rem, 3.6vw, 2.6rem); font-weight: 650; }
+h3 { font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; }
+p { margin: 0; }
+a { color: inherit; }
+.mono { font-family: var(--font-mono); }
+.eyebrow { font-family: var(--font-mono); font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+/* Header */
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding-block: 1.25rem; }
+.brand { display: flex; align-items: center; gap: .6rem; font-family: var(--font-display); font-weight: 750; font-size: 1.5rem; letter-spacing: -0.03em; text-decoration: none; }
+.brand svg { width: 62px; height: 34px; display: block; }
+nav.main { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: .95rem; }
+nav.main a { text-decoration: none; color: var(--muted); padding-block: .25rem; border-bottom: 1px solid transparent; }
+nav.main a:hover { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* Hero */
+.hero { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; gap: 3rem; align-items: center; padding-block: 3.5rem 4.5rem; }
+.hero::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px 10px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 80%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 80%);
+  opacity: .55;
+}
+.hero-copy { display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; }
+.hero-copy .lead { font-size: 1.15rem; color: var(--muted); max-width: 34rem; }
+.actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  font: 600 .98rem var(--font-body); padding: .8rem 1.2rem; border-radius: 6px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent);
+  cursor: pointer; text-decoration: none;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--ink); filter: none; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.slice { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1.25rem 1.25rem 1rem; display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
+.slice svg { width: 100%; height: auto; max-height: 440px; display: block; }
+.slice figcaption { font-family: var(--font-mono); font-size: .78rem; color: var(--muted); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+figure { margin: 0; }
+
+/* Sections */
+section { padding-block: 3.5rem; border-top: 1px solid var(--line); }
+.sec-head { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 2rem; max-width: 40rem; }
+.sec-head p { color: var(--muted); }
+.services { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem 2.25rem; }
+.service { border-top: 2px solid var(--accent); padding-top: 1rem; display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+.service p { color: var(--muted); font-size: .96rem; }
+.service .spec { font-family: var(--font-mono); font-size: .76rem; color: var(--ink); letter-spacing: .04em; }
+
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; min-width: 560px; font-size: .95rem; }
+th, td { text-align: left; padding: .9rem 1.1rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+td:first-child { font-family: var(--font-mono); font-weight: 500; white-space: nowrap; }
+td.temp { font-family: var(--font-mono); white-space: nowrap; }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1.5rem; counter-reset: s; }
+.steps li { display: flex; flex-direction: column; gap: .4rem; padding-top: .9rem; border-top: 1px solid var(--line); counter-increment: s; }
+.steps li::before { content: "Paso " counter(s); font-family: var(--font-mono); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.steps p { color: var(--muted); font-size: .95rem; }
+
+/* Conversor */
+.conv { display: grid; grid-template-columns: 1.2fr .8fr; gap: 1.5rem; align-items: start; }
+.viewer { position: relative; aspect-ratio: 4 / 3; width: 100%; background: var(--viewer); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.viewer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.viewer canvas:active { cursor: grabbing; }
+.badge { position: absolute; left: .75rem; top: .75rem; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em; padding: .25rem .55rem; border-radius: 4px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); max-width: calc(100% - 1.5rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hint { position: absolute; right: .75rem; bottom: .6rem; font-family: var(--font-mono); font-size: .7rem; color: var(--muted); }
+.viewer-fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 1rem; text-align: center; color: var(--muted); }
+.panel { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.drop { border: 1.5px dashed var(--line); border-radius: 10px; padding: 1.4rem 1rem; text-align: center; background: var(--surface); cursor: pointer; display: flex; flex-direction: column; gap: .3rem; }
+.drop:hover, .drop.over { border-color: var(--accent); }
+.drop strong { font-weight: 600; }
+.drop small { font-family: var(--font-mono); font-size: .76rem; color: var(--muted); }
+dl.stats { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .45rem 1rem; font-size: .93rem; }
+dl.stats dt { color: var(--muted); }
+dl.stats dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+.msg { font-size: .9rem; color: var(--muted); min-height: 1.4em; }
+.msg.err { color: var(--danger); }
+.fine { font-size: .84rem; color: var(--muted); }
+
+/* Contacto */
+.contact { display: grid; grid-template-columns: .8fr 1.2fr; gap: 3rem; align-items: start; }
+.channels { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.5rem; }
+.channel { display: flex; flex-direction: column; gap: .25rem; }
+.channel .val { font-family: var(--font-mono); font-size: 1rem; display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.channel .val span { user-select: all; overflow-wrap: anywhere; }
+.mini { font: 500 .78rem var(--font-body); padding: .25rem .6rem; border-radius: 4px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.mini:hover { border-color: var(--ink); }
+form.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.field { display: flex; flex-direction: column; gap: .35rem; min-width: 0; }
+.field.full { grid-column: 1 / -1; }
+label { font-size: .85rem; font-weight: 500; }
+input, select, textarea {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: .65rem .8rem; width: 100%; min-width: 0;
+}
+textarea { min-height: 7rem; resize: vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.err-text { color: var(--danger); font-size: .82rem; min-height: 1.1em; }
+.result { grid-column: 1 / -1; display: flex; flex-direction: column; gap: .75rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.result textarea { min-height: 9rem; font-family: var(--font-mono); font-size: .86rem; }
+
+footer { border-top: 1px solid var(--line); padding-top: 1.5rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; color: var(--muted); font-size: .88rem; }
+
+@media (max-width: 860px) {
+  .hero, .conv, .contact { grid-template-columns: 1fr; }
+  .hero { gap: 2rem; padding-block: 2rem 3rem; }
+  .contact { gap: 2rem; }
+  form.card { grid-template-columns: 1fr; padding: 1.1rem; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#inicio" data-go="inicio" aria-label="Be3D, inicio">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 74 40.3" role="img" aria-hidden="true"><defs><linearGradient id="be3d-grad" x1="44.3" y1="21.75" x2="118.3" y2="21.75" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#27b2be"/><stop offset="0.56" stop-color="#0082be"/><stop offset="1" stop-color="#27b2be"/></linearGradient></defs><path fill="url(#be3d-grad)" d="M105.6,1.6H95.7V14.75a11.92,11.92,0,0,0-7.2-1.95,12.77,12.77,0,0,0-7,1.93A8.39,8.39,0,0,0,73.2,8.8c-5.23,0-8.64,3.77-9.36,8.74A5.8,5.8,0,0,0,60.2,15.2c2.6-.6,4.6-2.9,4.6-6.4,0-3.7-2.4-7.2-7.7-7.2H44.3V29.7H57.6c4,0,6.35-2,7.26-4.74A9.19,9.19,0,0,0,73.5,30.2a10.91,10.91,0,0,0,7.6-2.9l-2.7-3.7a6.37,6.37,0,0,1-4.2,1.8,4.1,4.1,0,0,1-4.4-3.9H82.3v-.21l.1.11A7.67,7.67,0,0,1,88,18.9c2.3,0,3.8.8,3.8,2.7s-1.5,2.6-3.9,2.6H85.2v6.1H88c2.6,0,4.1.7,4.1,2.7,0,1.6-1.2,2.9-3.9,2.9a8.31,8.31,0,0,1-6.1-2.8l-3.9,4.4c1.9,2.6,5.5,4.5,10.4,4.4,6.2,0,10.3-3.4,10.3-8.3a6.57,6.57,0,0,0-1.26-3.9h8c8.1,0,12.7-5.7,12.7-14S113.6,1.6,105.6,1.6ZM51.1,7.5h4.3A2.24,2.24,0,0,1,57.8,10a2.31,2.31,0,0,1-2.4,2.6H51.1Zm4.5,16.4H51.1V18.4h4.5a2.52,2.52,0,0,1,2.7,2.7A2.5,2.5,0,0,1,55.6,23.9Zm14.1-6.4c.2-1.7,1-3.8,3.4-3.8,2.6,0,3.3,2.1,3.3,3.8Zm35.8,6.3h-3V7.6h3c3.7,0,5.7,2.9,5.7,8.1C111.2,20.6,109.1,23.8,105.5,23.8Z" transform="translate(-44.3 -1.6)"/></svg>
+    </a>
+    <nav class="main" aria-label="Principal">
+      <a href="#servicios" data-go="servicios">Servicios</a>
+      <a href="#materiales" data-go="materiales">Materiales</a>
+      <a href="#convertir" data-go="convertir">Convertir a STL</a>
+      <a href="#contacto" data-go="contacto">Contacto</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero" id="inicio">
+      <div class="hero-copy">
+        <p class="eyebrow">Impresión 3D FDM</p>
+        <h1>Tu pieza, capa por capa.</h1>
+        <p class="lead">Prototipos, repuestos y piezas funcionales a medida. Mandanos tu archivo o contanos la idea y te respondemos con una cotización.</p>
+        <div class="actions">
+          <a class="btn" href="#contacto" data-go="contacto">Pedir cotización</a>
+          <a class="btn ghost" href="#convertir" data-go="convertir">Convertir un archivo a STL</a>
+        </div>
+      </div>
+      <figure class="slice">
+        <svg id="vase" viewBox="0 0 260 372" role="img" aria-label="Jarrón dibujado con 60 líneas horizontales, como se ve una pieza rebanada en capas"></svg>
+        <figcaption><span>60 capas × 0,20 mm</span><span>altura 12 mm</span></figcaption>
+      </figure>
+    </div>
+
+    <section id="servicios">
+      <div class="sec-head">
+        <p class="eyebrow">Qué hacemos</p>
+        <h2>De una idea a una pieza en la mano</h2>
+        <p>Imprimimos lo que ya tenés diseñado y también ayudamos a diseñarlo.</p>
+      </div>
+      <div class="services">
+        <article class="service">
+          <h3>Prototipos</h3>
+          <p>Probá forma, medidas y encastres antes de invertir en fabricar en serie.</p>
+          <span class="spec">CAPA 0,10 – 0,30 mm</span>
+        </article>
+        <article class="service">
+          <h3>Repuestos y piezas funcionales</h3>
+          <p>Reproducimos esa pieza que ya no se consigue, con el material que aguante el uso.</p>
+          <span class="spec">PLA · PETG · ABS/ASA · TPU</span>
+        </article>
+        <article class="service">
+          <h3>Modelado 3D</h3>
+          <p>Desde un boceto, medidas o una pieza rota, armamos el modelo listo para imprimir.</p>
+          <span class="spec">ENTREGA EN STL / 3MF</span>
+        </article>
+        <article class="service">
+          <h3>Series cortas</h3>
+          <p>Varias unidades idénticas para un producto, un evento o un proyecto propio.</p>
+          <span class="spec">DESDE 1 UNIDAD</span>
+        </article>
+      </div>
+    </section>
+
+    <section id="materiales">
+      <div class="sec-head">
+        <p class="eyebrow">Materiales</p>
+        <h2>El material depende del uso</h2>
+        <p>Si no sabés cuál elegir, contanos dónde va a trabajar la pieza y te recomendamos uno.</p>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Material</th><th>Ideal para</th><th>Resiste</th><th>Carácter</th></tr></thead>
+          <tbody>
+            <tr><td>PLA</td><td>Prototipos, maquetas, decoración</td><td class="temp">~55 °C</td><td>Rígido y fácil de imprimir. No va al sol ni a lugares calientes.</td></tr>
+            <tr><td>PETG</td><td>Piezas funcionales, uso exterior</td><td class="temp">~75 °C</td><td>Tenaz, soporta golpes y humedad.</td></tr>
+            <tr><td>ABS / ASA</td><td>Piezas expuestas a calor o sol</td><td class="temp">~95 °C</td><td>Mecánico y estable. El ASA aguanta mejor la intemperie.</td></tr>
+            <tr><td>TPU</td><td>Juntas, topes, fundas</td><td class="temp">~80 °C</td><td>Flexible como una goma.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fine" style="margin-top:.75rem">Temperaturas aproximadas de uso continuo. Consultá disponibilidad de colores.</p>
+    </section>
+
+    <section id="proceso">
+      <div class="sec-head">
+        <p class="eyebrow">Cómo trabajamos</p>
+        <h2>Cuatro pasos, sin vueltas</h2>
+      </div>
+      <ol class="steps">
+        <li><h3>Nos contás</h3><p>Mandás el archivo, una foto o una descripción de lo que necesitás.</p></li>
+        <li><h3>Revisamos y cotizamos</h3><p>Controlamos que el modelo se pueda imprimir y te pasamos precio y plazo.</p></li>
+        <li><h3>Imprimimos</h3><p>Elegimos material, orientación y relleno según el uso de la pieza.</p></li>
+        <li><h3>Entregamos</h3><p>Retiro o envío, con la pieza revisada y limpia de soportes.</p></li>
+      </ol>
+    </section>
+
+    <section id="convertir">
+      <div class="sec-head">
+        <p class="eyebrow">Herramienta gratuita</p>
+        <h2>Convertí tu archivo a STL</h2>
+        <p>Subí un <span class="mono">.3mf</span> u <span class="mono">.obj</span>, mirá el modelo en 3D y descargá el STL. Todo se procesa en tu navegador: el archivo no se sube a ningún servidor.</p>
+      </div>
+      <div class="conv">
+        <div class="viewer" id="viewer">
+          <canvas id="cv" aria-label="Vista 3D del modelo. Arrastrá para girar, usá la rueda para acercar."></canvas>
+          <span class="badge" id="badge">Modelo de ejemplo</span>
+          <span class="hint">arrastrar para girar · rueda para zoom</span>
+        </div>
+        <div class="panel">
+          <div class="drop" id="drop" role="button" tabindex="0" aria-label="Elegir un archivo 3MF u OBJ">
+            <strong>Arrastrá un archivo acá o elegilo</strong>
+            <small>.3mf · .obj</small>
+          </div>
+          <input type="file" id="file" accept=".3mf,.obj,.step,.stp" hidden>
+          <dl class="stats">
+            <dt>Archivo</dt><dd id="s-name">—</dd>
+            <dt>Triángulos</dt><dd id="s-tris">—</dd>
+            <dt>Medidas</dt><dd id="s-dim">—</dd>
+            <dt>Volumen</dt><dd id="s-vol">—</dd>
+            <dt>PLA macizo</dt><dd id="s-w">—</dd>
+          </dl>
+          <button class="btn" id="dl" type="button">Descargar STL</button>
+          <p class="msg" id="msg" role="status" aria-live="polite"></p>
+          <p class="fine">El STL queda listo para abrir en tu slicer. El peso es una referencia a 100 % de relleno con PLA (1,24 g/cm³).</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="contacto">
+      <div class="contact">
+        <div>
+          <p class="eyebrow">Contacto</p>
+          <h2 style="margin-top:.75rem">Contanos qué necesitás</h2>
+          <p style="color:var(--muted);margin-top:.9rem">Respondemos con una cotización. Si ya tenés el archivo, mencionalo y lo mandás por el mismo chat.</p>
+          <div class="channels">
+            <div class="channel">
+              <span class="eyebrow">WhatsApp</span>
+              <div class="val"><span id="c-wa"></span><button class="mini" type="button" data-copy="wa">Copiar</button></div>
+            </div>
+            <div class="channel">
+              <span class="eyebrow">Email</span>
+              <div class="val"><span id="c-mail"></span><button class="mini" type="button" data-copy="mail">Copiar</button></div>
+            </div>
+          </div>
+        </div>
+        <form class="card" id="form" novalidate>
+          <div class="field">
+            <label for="f-name">Nombre</label>
+            <input id="f-name" name="name" autocomplete="name" required>
+            <span class="err-text" id="e-name"></span>
+          </div>
+          <div class="field">
+            <label for="f-contact">Tu email o teléfono</label>
+            <input id="f-contact" name="contact" autocomplete="email">
+            <span class="err-text"></span>
+          </div>
+          <div class="field">
+            <label for="f-type">Tipo de trabajo</label>
+            <select id="f-type">
+              <option>Prototipo</option><option>Repuesto o pieza funcional</option><option>Modelado 3D</option><option>Serie corta</option><option>Otro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-mat">Material</label>
+            <select id="f-mat">
+              <option>No sé, recomiéndenme</option><option>PLA</option><option>PETG</option><option>ABS / ASA</option><option>TPU</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-qty">Cantidad</label>
+            <input id="f-qty" type="number" min="1" value="1" inputmode="numeric">
+          </div>
+          <div class="field full">
+            <label for="f-detail">Detalle del trabajo</label>
+            <textarea id="f-detail" required placeholder="Medidas aproximadas, para qué se va a usar, si tenés archivo o foto…"></textarea>
+            <span class="err-text" id="e-detail"></span>
+          </div>
+          <div class="field full">
+            <button class="btn" type="submit">Armar mensaje</button>
+          </div>
+          <div class="result" id="result" hidden>
+            <label for="f-out">Tu mensaje está listo. Enviarlo por WhatsApp o copiarlo para mandarlo por mail.</label>
+            <textarea id="f-out" readonly></textarea>
+            <div class="actions">
+              <a class="btn" id="wa-link" href="#" target="_blank" rel="noopener">Abrir WhatsApp</a>
+              <button class="btn ghost" id="copy-msg" type="button">Copiar mensaje</button>
+            </div>
+            <p class="fine" id="copy-note" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>© 2026 Be3D · Impresión 3D</span>
+    <span class="mono">Be3D</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* ---------- Datos de contacto: editar acá ---------- */
+const CONTACT = {
+  whatsapp: "5492990000000",          // solo números, con código de país
+  whatsappLabel: "+54 9 299 000-0000",
+  email: "hola@be3d.com.ar"
+};
+
+const $ = (id) => document.getElementById(id);
+
+/* ---------- Navegación interna ---------- */
+document.querySelectorAll("[data-go]").forEach((a) => {
+  a.addEventListener("click", (e) => {
+    e.preventDefault();
+    const t = $(a.dataset.go);
+    if (t) t.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  });
+});
+
+/* ---------- Jarrón rebanado en capas ---------- */
+(function () {
+  const svg = $("vase"), NS = "http://www.w3.org/2000/svg";
+  svg.insertAdjacentHTML("afterbegin", '<defs><linearGradient id="vase-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#27b2be"/><stop offset="0.56" stop-color="#0082be"/><stop offset="1" stop-color="#27b2be"/></linearGradient></defs>');
+  const layers = 60, h = 5, step = 6, cx = 130, top = 6;
+  for (let i = 0; i < layers; i++) {
+    const t = i / (layers - 1);                       // 0 = base, 1 = boca
+    const w = 56 + 40 * Math.sin(t * Math.PI * 0.92 + 0.15) + 26 * Math.sin(t * Math.PI * 2.6) * (1 - t * 0.5) - 18 * t * t;
+    const y = top + (layers - 1 - i) * step;
+    const r = document.createElementNS(NS, "rect");
+    r.setAttribute("x", (cx - w).toFixed(2));
+    r.setAttribute("y", y);
+    r.setAttribute("width", (w * 2).toFixed(2));
+    r.setAttribute("height", h);
+    r.setAttribute("rx", h / 2);
+    r.setAttribute("style", "fill:url(#vase-grad);opacity:" + (0.38 + 0.62 * (0.5 + 0.5 * Math.sin(i * 0.9))).toFixed(2));
+    svg.appendChild(r);
+  }
+  const yTop = top, yBot = top + (layers - 1) * step + h;
+  const g = document.createElementNS(NS, "g");
+  g.innerHTML =
+    '<line x1="248" y1="' + yTop + '" x2="248" y2="' + yBot + '" style="stroke:var(--muted)" stroke-width="1"/>' +
+    '<line x1="243" y1="' + yTop + '" x2="253" y2="' + yTop + '" style="stroke:var(--muted)" stroke-width="1"/>' +
+    '<line x1="243" y1="' + yBot + '" x2="253" y2="' + yBot + '" style="stroke:var(--muted)" stroke-width="1"/>';
+  svg.appendChild(g);
+})();
+
+/* ---------- Lectura de modelos ---------- */
+const I4 = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+function matMul(a, b) {
+  const r = new Array(16).fill(0);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    let s = 0; for (let k = 0; k < 4; k++) s += a[i*4+k] * b[k*4+j]; r[i*4+j] = s;
+  }
+  return r;
+}
+function parseTransform(s) {
+  if (!s) return I4;
+  const n = s.trim().split(/\s+/).map(Number);
+  if (n.length !== 12 || n.some(isNaN)) return I4;
+  return [n[0],n[1],n[2],0, n[3],n[4],n[5],0, n[6],n[7],n[8],0, n[9],n[10],n[11],1];
+}
+const UNITS = { micron: 0.001, millimeter: 1, centimeter: 10, meter: 1000, inch: 25.4, foot: 304.8 };
+
+async function load3MF(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const parser = new DOMParser();
+  const keys = Object.keys(zip.files);
+  const find = (p) => keys.find((k) => k.toLowerCase() === p.replace(/^\//, "").toLowerCase());
+  const cache = new Map();
+
+  async function getModel(path) {
+    const key = find(path);
+    if (!key) throw new Error("El 3MF hace referencia a un archivo que no está: " + path);
+    if (cache.has(key)) return cache.get(key);
+    const doc = parser.parseFromString(await zip.file(key).async("string"), "application/xml");
+    if (doc.getElementsByTagName("parsererror").length) throw new Error("No pude leer el XML del 3MF.");
+    const objects = new Map();
+    for (const el of doc.getElementsByTagNameNS("*", "object")) {
+      const o = { mesh: null, components: [] };
+      const mesh = el.getElementsByTagNameNS("*", "mesh")[0];
+      if (mesh) {
+        const vs = mesh.getElementsByTagNameNS("*", "vertex");
+        const ts = mesh.getElementsByTagNameNS("*", "triangle");
+        const v = new Float64Array(vs.length * 3), t = new Uint32Array(ts.length * 3);
+        for (let i = 0; i < vs.length; i++) {
+          v[i*3] = +vs[i].getAttribute("x"); v[i*3+1] = +vs[i].getAttribute("y"); v[i*3+2] = +vs[i].getAttribute("z");
+        }
+        for (let i = 0; i < ts.length; i++) {
+          t[i*3] = +ts[i].getAttribute("v1"); t[i*3+1] = +ts[i].getAttribute("v2"); t[i*3+2] = +ts[i].getAttribute("v3");
+        }
+        o.mesh = { v, t };
+      }
+      for (const c of el.getElementsByTagNameNS("*", "component")) {
+        o.components.push({
+          id: c.getAttribute("objectid"),
+          path: c.getAttribute("p:path") || c.getAttribute("path"),
+          t: parseTransform(c.getAttribute("transform"))
+        });
+      }
+      objects.set(el.getAttribute("id"), o);
+    }
+    const items = [...doc.getElementsByTagNameNS("*", "item")].map((i) => ({
+      id: i.getAttribute("objectid"), t: parseTransform(i.getAttribute("transform"))
+    }));
+    const m = { objects, items, unit: doc.documentElement.getAttribute("unit") || "millimeter" };
+    cache.set(key, m);
+    return m;
+  }
+
+  let rootPath = "3D/3dmodel.model";
+  const relsKey = find("_rels/.rels");
+  if (relsKey) {
+    const rels = parser.parseFromString(await zip.file(relsKey).async("string"), "application/xml");
+    const r = [...rels.getElementsByTagName("Relationship")].find((x) => /3dmodel/i.test(x.getAttribute("Type") || ""));
+    if (r && r.getAttribute("Target")) rootPath = r.getAttribute("Target");
+  }
+  const root = await getModel(rootPath);
+  const chunks = [];
+
+  async function emit(model, obj, total, depth) {
+    if (depth > 16) return;
+    if (obj.mesh) {
+      const { v, t } = obj.mesh, n = t.length / 3, out = new Float32Array(n * 9);
+      const m = total;
+      const det = m[0]*(m[5]*m[10]-m[6]*m[9]) - m[1]*(m[4]*m[10]-m[6]*m[8]) + m[2]*(m[4]*m[9]-m[5]*m[8]);
+      const order = det < 0 ? [0, 2, 1] : [0, 1, 2];
+      for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) {
+        const vi = t[i*3 + order[k]] * 3, x = v[vi], y = v[vi+1], z = v[vi+2], o = i*9 + k*3;
+        out[o]   = x*m[0] + y*m[4] + z*m[8]  + m[12];
+        out[o+1] = x*m[1] + y*m[5] + z*m[9]  + m[13];
+        out[o+2] = x*m[2] + y*m[6] + z*m[10] + m[14];
+      }
+      chunks.push(out);
+    }
+    for (const c of obj.components) {
+      const sub = c.path ? await getModel(c.path) : model;
+      const child = sub.objects.get(c.id);
+      if (child) await emit(sub, child, matMul(c.t, total), depth + 1);
+    }
+  }
+
+  if (root.items.length) {
+    for (const it of root.items) {
+      const o = root.objects.get(it.id);
+      if (o) await emit(root, o, it.t, 0);
+    }
+  } else {
+    for (const o of root.objects.values()) await emit(root, o, I4, 0);
+  }
+  let len = 0; chunks.forEach((c) => (len += c.length));
+  if (!len) throw new Error("No encontré geometría en este 3MF.");
+  const tris = new Float32Array(len);
+  let off = 0; for (const c of chunks) { tris.set(c, off); off += c.length; }
+  const s = UNITS[root.unit] ?? 1;
+  if (s !== 1) for (let i = 0; i < tris.length; i++) tris[i] *= s;
+  return { tris, zUp: true };
+}
+
+function loadOBJ(text) {
+  const v = [], out = [];
+  for (const raw of text.split(/\r?\n/)) {
+    if (raw.startsWith("v ")) {
+      const p = raw.trim().split(/\s+/); v.push(+p[1], +p[2], +p[3]);
+    } else if (raw.startsWith("f ")) {
+      const idx = raw.trim().split(/\s+/).slice(1).map((s) => {
+        const i = parseInt(s.split("/")[0], 10);
+        return i < 0 ? v.length / 3 + i : i - 1;
+      });
+      for (let k = 1; k < idx.length - 1; k++) for (const j of [idx[0], idx[k], idx[k+1]]) out.push(v[j*3], v[j*3+1], v[j*3+2]);
+    }
+  }
+  if (!out.length) throw new Error("No encontré caras en este OBJ.");
+  return { tris: Float32Array.from(out), zUp: false };
+}
+
+/* ---------- STL binario ---------- */
+function toSTL(tris) {
+  const n = tris.length / 9, buf = new ArrayBuffer(84 + n * 50), dv = new DataView(buf);
+  const head = "Be3D conversor"; for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i));
+  dv.setUint32(80, n, true);
+  let o = 84;
+  for (let i = 0; i < n; i++) {
+    const b = i * 9;
+    const ux = tris[b+3]-tris[b], uy = tris[b+4]-tris[b+1], uz = tris[b+5]-tris[b+2];
+    const vx = tris[b+6]-tris[b], vy = tris[b+7]-tris[b+1], vz = tris[b+8]-tris[b+2];
+    let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    dv.setFloat32(o, nx, true); dv.setFloat32(o+4, ny, true); dv.setFloat32(o+8, nz, true);
+    for (let k = 0; k < 9; k++) dv.setFloat32(o + 12 + k*4, tris[b+k], true);
+    dv.setUint16(o + 48, 0, true);
+    o += 50;
+  }
+  return buf;
+}
+
+function measure(tris) {
+  let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity, vol = 0;
+  for (let i = 0; i < tris.length; i += 9) {
+    for (let k = 0; k < 9; k += 3) {
+      const x = tris[i+k], y = tris[i+k+1], z = tris[i+k+2];
+      if (x<minX) minX=x; if (x>maxX) maxX=x; if (y<minY) minY=y; if (y>maxY) maxY=y; if (z<minZ) minZ=z; if (z>maxZ) maxZ=z;
+    }
+    const ax=tris[i],ay=tris[i+1],az=tris[i+2],bx=tris[i+3],by=tris[i+4],bz=tris[i+5],cx=tris[i+6],cy=tris[i+7],cz=tris[i+8];
+    vol += ax*(by*cz-bz*cy) - ay*(bx*cz-bz*cx) + az*(bx*cy-by*cx);
+  }
+  return { dim: [maxX-minX, maxY-minY, maxZ-minZ], vol: Math.abs(vol) / 6 };
+}
+
+/* ---------- Visor 3D ---------- */
+let renderer, scene, camera, pivot, mesh, material, dist = 80, dragging = false, onScreen = true;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function initViewer() {
+  const cv = $("cv"), box = $("viewer");
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+  } catch (e) {
+    const d = document.createElement("div"); d.className = "viewer-fail";
+    d.textContent = "Tu navegador no puede mostrar la vista 3D. La conversión sigue funcionando."; box.appendChild(d);
+    return false;
+  }
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(35, 1, 0.1, 10000);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.95));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(1, 2, 3); scene.add(dl);
+  pivot = new THREE.Group(); scene.add(pivot);
+  material = new THREE.MeshStandardMaterial({ color: 0x1c9cc4, roughness: 0.55, metalness: 0.05 });
+
+  const resize = () => {
+    const w = box.clientWidth, h = box.clientHeight; if (!w || !h) return;
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(box); resize();
+
+  let lx = 0, ly = 0;
+  cv.addEventListener("pointerdown", (e) => { dragging = true; lx = e.clientX; ly = e.clientY; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    pivot.rotation.y += (e.clientX - lx) * 0.01;
+    pivot.rotation.x = Math.max(-1.5, Math.min(1.5, pivot.rotation.x + (e.clientY - ly) * 0.01));
+    lx = e.clientX; ly = e.clientY;
+  });
+  const end = () => { dragging = false; };
+  cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
+  cv.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    dist = Math.max(camera.near * 2, Math.min(camera.far * 0.5, dist * Math.exp(e.deltaY * 0.001)));
+    camera.position.z = dist;
+  }, { passive: false });
+  new IntersectionObserver((en) => { onScreen = en[0].isIntersecting; }).observe(box);
+
+  (function loop() {
+    requestAnimationFrame(loop);
+    if (!onScreen) return;
+    if (!dragging && !reduce) pivot.rotation.y += 0.004;
+    renderer.render(scene, camera);
+  })();
+  return true;
+}
+
+function showModel(tris, zUp) {
+  if (!renderer) return;
+  if (mesh) { pivot.remove(mesh); mesh.geometry.dispose(); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(tris.slice(), 3));
+  g.computeVertexNormals(); g.computeBoundingBox();
+  const c = new THREE.Vector3(); g.boundingBox.getCenter(c); g.translate(-c.x, -c.y, -c.z);
+  g.computeBoundingSphere();
+  const r = g.boundingSphere.radius || 1;
+  mesh = new THREE.Mesh(g, material);
+  mesh.rotation.x = zUp ? -Math.PI / 2 : 0;
+  pivot.add(mesh);
+  dist = (r / Math.sin(0.3054)) * 1.1;
+  camera.near = r / 100; camera.far = r * 40;
+  camera.position.set(0, 0, dist); camera.updateProjectionMatrix();
+  pivot.rotation.set(0.35, 0.6, 0);
+}
+
+/* ---------- Conversor: estado y UI ---------- */
+let current = null;   // { name, tris, zUp, sample }
+const fmt = (n, d = 0) => n.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d });
+function setMsg(t, err) { const m = $("msg"); m.textContent = t || ""; m.className = "msg" + (err ? " err" : ""); }
+
+function setModel(name, tris, zUp, sample) {
+  current = { name, tris, zUp, sample };
+  const { dim, vol } = measure(tris), cm3 = vol / 1000;
+  $("s-name").textContent = name;
+  $("s-tris").textContent = fmt(tris.length / 9);
+  $("s-dim").textContent = dim.map((d) => fmt(d, 1)).join(" × ") + " mm";
+  $("s-vol").textContent = fmt(cm3, 1) + " cm³";
+  $("s-w").textContent = "≈ " + fmt(cm3 * 1.24, 0) + " g";
+  $("badge").textContent = sample ? "Modelo de ejemplo" : name;
+  showModel(tris, zUp);
+}
+
+function sampleModel() {
+  const g = new THREE.TorusKnotGeometry(10, 3, 160, 24, 2, 3).toNonIndexed();
+  const tris = Float32Array.from(g.attributes.position.array);
+  g.dispose();
+  setModel("nudo-ejemplo", tris, false, true);
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const base = file.name.replace(/\.[^.]+$/, "");
+  if (ext === "step" || ext === "stp") {
+    setMsg("Los archivos STEP / STP no se pueden convertir en el navegador. Escribinos desde el formulario de contacto y lo resolvemos.", true);
+    return;
+  }
+  if (ext !== "3mf" && ext !== "obj") { setMsg("Formato no compatible. Subí un archivo .3mf u .obj.", true); return; }
+  setMsg("Leyendo " + file.name + "…");
+  try {
+    const r = ext === "3mf" ? await load3MF(await file.arrayBuffer()) : loadOBJ(await file.text());
+    setModel(base, r.tris, r.zUp, false);
+    setMsg("Listo. Revisá el modelo y descargá el STL.");
+  } catch (e) {
+    setMsg(e && e.message ? e.message : "No se pudo leer el archivo.", true);
+  }
+}
+
+const drop = $("drop"), fileIn = $("file");
+drop.addEventListener("click", () => fileIn.click());
+drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileIn.click(); } });
+fileIn.addEventListener("change", () => { handleFile(fileIn.files[0]); fileIn.value = ""; });
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => handleFile(e.dataTransfer.files[0]));
+
+let downloadsApi = null;   // dentro de claude.ai se usa el guardado del visor; fuera, descarga normal
+(async () => {
+  try { downloadsApi = (await window.claude?.use("downloads")) || null; } catch (e) { downloadsApi = null; }
+})();
+
+$("dl").addEventListener("click", async () => {
+  if (!current) return;
+  try {
+    setMsg("Preparando el STL…");
+    if (downloadsApi) {
+      const zip = new JSZip();
+      zip.file(current.name + ".stl", toSTL(current.tris));
+      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+      await downloadsApi.save({ filename: current.name + ".zip", data: blob });
+      setMsg("Descarga lista: " + current.name + ".zip");
+    } else {
+      const url = URL.createObjectURL(new Blob([toSTL(current.tris)], { type: "model/stl" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = current.name + ".stl";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      setMsg("Descarga lista: " + current.name + ".stl");
+    }
+  } catch (e) {
+    if (e && e.code === "declined") setMsg("");
+    else setMsg("No se pudo guardar el archivo (" + ((e && (e.code || e.message)) || "error") + ").", true);
+  }
+});
+
+/* ---------- Contacto ---------- */
+$("c-wa").textContent = CONTACT.whatsappLabel;
+$("c-mail").textContent = CONTACT.email;
+
+async function copyText(text, el) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) {
+    if (el && el.select) { el.focus(); el.select(); }
+    return false;
+  }
+}
+document.querySelectorAll("[data-copy]").forEach((b) => {
+  b.addEventListener("click", async () => {
+    const txt = b.dataset.copy === "wa" ? CONTACT.whatsappLabel : CONTACT.email;
+    const ok = await copyText(txt);
+    const prev = b.textContent; b.textContent = ok ? "Copiado" : "Seleccioná y copiá";
+    setTimeout(() => (b.textContent = prev), 1600);
+  });
+});
+
+$("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = $("f-name").value.trim(), detail = $("f-detail").value.trim();
+  $("e-name").textContent = name ? "" : "Contanos tu nombre.";
+  $("e-detail").textContent = detail ? "" : "Describí brevemente qué necesitás.";
+  if (!name || !detail) return;
+  const contact = $("f-contact").value.trim();
+  const lines = [
+    "Hola Be3D, soy " + name + ".",
+    "Trabajo: " + $("f-type").value,
+    "Material: " + $("f-mat").value,
+    "Cantidad: " + ($("f-qty").value || "1"),
+    "Detalle: " + detail
+  ];
+  if (contact) lines.push("Contacto: " + contact);
+  const msg = lines.join("\n");
+  $("f-out").value = msg;
+  $("wa-link").href = "https://wa.me/" + CONTACT.whatsapp + "?text=" + encodeURIComponent(msg);
+  $("result").hidden = false;
+  $("copy-note").textContent = "";
+  $("result").scrollIntoView({ block: "nearest" });
+});
+$("copy-msg").addEventListener("click", async () => {
+  const ok = await copyText($("f-out").value, $("f-out"));
+  $("copy-note").textContent = ok ? "Mensaje copiado." : "Seleccioné el texto: copialo con Ctrl+C.";
+});
+
+/* ---------- Arranque ---------- */
+if (initViewer()) sampleModel();
+else {
+  const t = new Float32Array([0,0,0, 10,0,0, 0,10,0,  0,0,0, 0,10,0, 0,0,10,  0,0,0, 0,0,10, 10,0,0,  10,0,0, 0,0,10, 0,10,0]);
+  setModel("tetraedro-ejemplo", t, false, true);
+}
+</script>
+</body>
+</html>
