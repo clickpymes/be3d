@@ -175,6 +175,16 @@ footer { border-top: 1px solid var(--line); padding-top: 1.5rem; display: flex; 
 footer a.credit { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
 footer a.credit:hover { color: var(--accent); text-decoration-color: var(--accent); }
 
+@media (max-width: 640px) {
+  header.top { flex-direction: column; align-items: center; justify-content: center; gap: .75rem; padding-block: 1.5rem 1rem; text-align: center; }
+  .brand { justify-content: center; }
+  .brand svg { width: 120px; height: 65px; }
+  nav.main { width: 100%; justify-content: center; gap: .4rem .9rem; font-size: .85rem; }
+}
+@media (max-width: 360px) {
+  nav.main { display: grid; grid-template-columns: repeat(2, auto); justify-content: center; justify-items: center; gap: .4rem 1.75rem; }
+}
+
 @media (max-width: 860px) {
   .hero, .conv, .contact { grid-template-columns: 1fr; }
   .hero { gap: 2rem; padding-block: 2rem 3rem; }
